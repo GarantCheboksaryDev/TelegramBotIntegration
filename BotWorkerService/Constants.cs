@@ -46,6 +46,10 @@
         public class EntityProperties 
         {
             /// <summary>
+            /// Идентификатор сущности.
+            /// </summary>
+            public const string Id = "Id";
+            /// <summary>
             /// Наименование сущности.
             /// </summary>
             public const string Name = "Name";

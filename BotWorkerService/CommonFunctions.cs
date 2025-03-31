@@ -86,8 +86,7 @@ namespace TelegramBot
                     BotProgram.UserInfo[chatId].LastMessage = await BotProgram.Telegram.EditMessageReplyMarkup(chatId, BotProgram.UserInfo[chatId].LastMessage.MessageId);
             }
             catch
-            {
-            }
+            {  }
         }
 
         /// <summary>
@@ -154,12 +153,12 @@ namespace TelegramBot
                 foreach (var info in infos)
                 {
                     var entity = new EntityInfo();
-                    if (info["Name"] == null)
+                    if (info[Constants.EntityProperties.Name] == null)
                         continue;
-                    entity.Name = info["Name"].Trim();
+                    entity.Name = info[Constants.EntityProperties.Name].Trim();
                     if (entity.Name.Length > 127)
                         entity.Name = entity.Name.Substring(0, 127);
-                    entity.Id = info["Id"];
+                    entity.Id = info[Constants.EntityProperties.Id];
                     entities.Add(entity);
                 }
             }
