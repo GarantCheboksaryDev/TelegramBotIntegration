@@ -61,8 +61,6 @@ namespace TelegramBot
                             var message = update.Message;
                             var messageText = message.Text ?? message.Caption;
 
-                            await CommonFunctions.RemoveInline(update);
-
                             // Переход в главное меню.
                             if (messageText == BotWorkerService.Constants.StartMessage || messageText == BotWorkerService.Constants.NavigationConstants.MainMenu)
                             {
