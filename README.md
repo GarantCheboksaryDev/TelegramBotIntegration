@@ -1,1 +1,1 @@
-# BotWorkerService 1.5
+# BotWorkerService
