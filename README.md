@@ -1,5 +1,5 @@
 # TelegramBotIntegration
-Репозиторий шаблона разработки «Чат-бот Telegram». Код сервиса для обработки сообщений в чате.
+Репозиторий шаблона разработки «Чат-бот Telegram». Код сервиса для обработки сообщений.
 
 ## Функционал, предоставляемый шаблоном решения:
 
@@ -57,29 +57,32 @@
 10. **SmtpSecure** - тип шифрования подключения к почтовому серверу. Возможные значения: Auto, None, SslOnConnect, StartTls, StartTlsWhenAvailable.
 
 #### Пример настройки:
-<pre>&lt;add key="TelegramBotApiKey" value="810946782:Pu3B3uaqqX18z5pXfMqS0sF8iEnMu1" /&gt;
-&lt;add key="IntegrationServiceUrl" value="https://directumrx/Integration/odata" /&gt;
-&lt;add key="IntegrationUserLogin" value="Service user" /&gt;
-&lt;add key="IntegrationUserPassword" value="11111" /&gt;
-&lt;add key="MailAddress" value="test@mail.ru" /&gt;
-&lt;add key="SmtpLogin" value="test@mail.ru" /&gt;
-&lt;add key="SmtpPassword" value="11111" /&gt;
-&lt;add key="SmtpHost" value="smtp.mail.ru" /&gt;
-&lt;add key="SmtpPort" value="25" /&gt;
-&lt;add key="SmtpSecure" value="None" /&gt;</pre>
+```xml
+<add key="TelegramBotApiKey" value="810946782:Pu3B3uaqqX18z5pXfMqS0sF8iEnMu1" />
+<add key="IntegrationServiceUrl" value="https://directumrx/Integration/odata" />
+<add key="IntegrationUserLogin" value="Service user" />
+<add key="IntegrationUserPassword" value="11111" />
+<add key="MailAddress" value="test@mail.ru" />
+<add key="SmtpLogin" value="test@mail.ru" />
+<add key="SmtpPassword" value="11111" />
+<add key="SmtpHost" value="smtp.mail.ru" />
+<add key="SmtpPort" value="25" />
+<add key="SmtpSecure" value="None" />
+```
 
 ### Конфигурация логирования задается в файле nlog.config:
 В атрибуте filename необходимо изменить папку, в которую будут записываться лог-файлы.
 
 #### Пример настройки:
-<pre>&lt;targets&gt;
-  &lt;!-- Логирование в файл --&gt;  
-  &lt;target xsi:type="File" name="fileTarget"  
+```xml
+<targets>
+  <!-- Логирование в файл -->  
+  <target xsi:type="File" name="fileTarget"  
       fileName="C:\TelegramBot\TelegramBot.${shortdate}.log"  
       archiveEvery="Day" archiveNumbering="Rolling"  
-      layout="${longdate} [${level}] ${message} ${exception:format=ToString}" /&gt;  
-&lt;/targets&gt;
-</pre>
+      layout="${longdate} [${level}] ${message} ${exception:format=ToString}" />  
+</targets>
+```
   
 ## Порядок установки службы
 ### Windows:
