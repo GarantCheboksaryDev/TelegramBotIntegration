@@ -9,7 +9,7 @@
         /// <summary>
         /// Период проверки авторизации пользователя в Directum RX в секундах.
         /// </summary>
-        public const int CheckingPeriod = 100;
+        public const int CheckingPeriod = 60;
         /// <summary>
         /// Наименования атрибутов справочника "Пользователи чат-бота".
         /// </summary>
