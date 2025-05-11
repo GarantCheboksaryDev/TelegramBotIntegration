@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<settings>
+  <var name="LOGS_PATH" value="C:\RxData/logs" />
+  <var name="TELEGRAM_BOT_API_KEY" value="" />
+  <var name="INTEGRATION_SERVICE_URL" value="http://localhost/Integration/odata" />
+  <var name="INTEGRATION_USER_LOGIN" value="Service user" />
+  <var name="INTEGRATION_USER_PASSWORD" value="11111" />
+  <var name="SMTP_ADDRESS" value="admin@mail.ru" />
+  <var name="SMTP_LOGIN" value="admin@mail.ru" />
+  <var name="SMTP_PASSWORD" value="11111" />
+  <var name="SMTP_HOST" value="smtp.mail.ru" />
+  <var name="SMTP_PORT" value="25" />
+  <var name="SMTP_SECURE" value="None" />
+  <var name="ENTITIES_ON_PAGE" value="4" />
+  <var name="MAX_TOTAL_LENGTH_IN_MARKUP" value="50" />
+  <var name="USER_CHECK_INTERVAL" value="60" />
+</settings>

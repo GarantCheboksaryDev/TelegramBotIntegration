@@ -50,6 +50,16 @@ namespace TelegramBotService
         public DateTime? LastUserCheck { get; set; }
 
         /// <summary>
+        /// Вложения, отправленные в чат в составе одной группы.
+        /// </summary>
+        public List<AttachmentInfo> Attachments { get; set; } = new List<AttachmentInfo>();
+
+        /// <summary>
+        /// Текст заявки.
+        /// </summary>
+        public string RequestText { get; set; }
+
+        /// <summary>
         /// Страница, на которой находится пользователь, при выборе из большого списка записей.
         /// </summary>
         public int Page
@@ -85,6 +95,44 @@ namespace TelegramBotService
         {
             Name = name;
             Id = id;
+        }
+    }
+
+    /// <summary>
+    /// Структура для хранения информации о вложениях сообщений.
+    /// </summary>
+    public class AttachmentInfo
+    {
+        public string Name { get; set; }
+        public string Id { get; set; }
+
+        public AttachmentInfo() { }
+
+        public AttachmentInfo(string name, string id)
+        {
+            Name = name;
+            Id = id;
+        }
+    }
+
+    /// <summary>
+    /// Структура для отправки информации о файлах в RX.
+    /// </summary>
+    partial class FileInfo
+    {
+        /// <summary>
+        /// Тело файла в формате Base64.
+        /// </summary>
+        public string Body { get; set; }
+        /// <summary>
+        /// Имя файла.
+        /// </summary>
+        public string Name { get; set; }
+
+        public FileInfo(string body, string name)
+        {
+            Body = body;
+            Name = name;
         }
     }
 }

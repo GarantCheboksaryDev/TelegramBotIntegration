@@ -22,6 +22,7 @@
         ShownDocument,
 
         // Формирование заявки.
-        EnteringRequestText
+        EnteringRequestText,
+        PuttingDocuments
     }
 }

@@ -1,22 +1,19 @@
+using CustomJobHandler;
+using Sungero.Logging;
 using TelegramBot;
 
 public sealed class BotService : BackgroundService
 {
-    private readonly ILogger<BotService> _logger;
+    private static ILog _logger => Logs.GetLogger<BotService>();
 
-    public BotService(ILogger<BotService> logger) =>
-        _logger = logger;
+    public override Task StartAsync(CancellationToken cancellationToken)
+    {
+        _logger.Debug("BotService started at {time}", DateTimeOffset.Now);
+        return base.StartAsync(cancellationToken);
+    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        try
-        {
-            _logger.LogInformation("Application starting");
-            BotProgram.Start(_logger);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex.ToString());
-        }
+        BotWrapper.Start(_logger);
     }
 }

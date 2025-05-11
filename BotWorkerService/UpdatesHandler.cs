@@ -5,13 +5,15 @@ using TelegramBotService;
 using BotWorkerService;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using Sungero.Logging;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace TelegramBot
 {
     /// <summary>
     /// Обработка обновлений (сообщений и нажатий кнопок) от пользователя.
     /// </summary>
-    partial class BotProgram
+    partial class BotWrapper
     {
         /// <summary>
         /// Обработка полученных из чата обновлений.
@@ -40,7 +42,7 @@ namespace TelegramBot
                 }
 
                 var lastUserCheck = UserInfo[chatId].LastUserCheck;
-                if (UserInfo[chatId].State != State.Registration && UserInfo[chatId].State != State.ConfirmationCode && (!lastUserCheck.HasValue || lastUserCheck.Value.AddSeconds(Constants.CheckingPeriod) < DateTime.Now))
+                if (UserInfo[chatId].State != State.Registration && UserInfo[chatId].State != State.ConfirmationCode && (!lastUserCheck.HasValue || lastUserCheck.Value.AddSeconds(BotWrapper.UserCheckInterval) < DateTime.Now))
                 {
                     var identified = await IdentificateUser(update);
                     if (!identified)
@@ -54,12 +56,12 @@ namespace TelegramBot
 
                     case UpdateType.Message:
 
-                        Logger.LogTrace(JsonSerializer.Serialize((update.Message), options));
+                        Logger.Trace(JsonSerializer.Serialize((update.Message), options));
 
-                        if (update.Message != null && (update.Message.Text != null || update.Message.Caption != null) && update.Message.From != null && !update.Message.From.IsBot)
+                        if (update.Message != null && update.Message.From != null && !update.Message.From.IsBot)
                         {
                             var message = update.Message;
-                            var messageText = message.Text ?? message.Caption;
+                            var messageText = (message.Text ?? message.Caption) ?? string.Empty;
 
                             // Переход в главное меню.
                             if (messageText == BotWorkerService.Constants.StartMessage || messageText == BotWorkerService.Constants.NavigationConstants.MainMenu)
@@ -140,6 +142,7 @@ namespace TelegramBot
                                     break;
 
                                 case State.EnteringDocumentName:
+                                    await CommonFunctions.RemoveInline(update);
                                     if (UserInfo[chatId].DocumentTypeId.HasValue)
                                     {
                                         var documents = await IntegrationDirectumRX.GetDocuments(update, messageText, UserInfo[chatId].DocumentTypeId.Value);
@@ -166,7 +169,16 @@ namespace TelegramBot
                                     break;
 
                                 case State.EnteringRequestText:
-                                    CreateRequest(update);
+                                    await CommonFunctions.RemoveInline(update);
+                                    UserInfo[chatId].RequestText = messageText;
+                                    UserInfo[chatId].LastMessage = await botClient.SendMessage(chatId, $"При необходимости, отправьте в чат фото, видео или документы, которые необходимо прикрепить к заявке (дождитесь их полной загрузки). Для отправки заявки нажмите \"{Constants.NavigationConstants.Requests.SendRequest}\"", replyMarkup: GetBackToMenuMarkup(Constants.NavigationConstants.Requests.SendRequest));
+                                    UserInfo[chatId].State = State.PuttingDocuments;
+                                    break;
+
+                                case State.PuttingDocuments:
+                                    var attachmnetInfo = CommonFunctions.GetAttachmentInfoFromMessage(message);
+                                    if (attachmnetInfo.Id != null)
+                                        UserInfo[chatId].Attachments.Add(attachmnetInfo);
                                     break;
                             }
                         }
@@ -178,7 +190,7 @@ namespace TelegramBot
 
                     case UpdateType.CallbackQuery:
 
-                        Logger.LogTrace(JsonSerializer.Serialize((update.CallbackQuery), options));
+                        Logger.Trace(JsonSerializer.Serialize((update.CallbackQuery), options));
 
                         var callBackQuery = update.CallbackQuery;
                         if (callBackQuery != null)
@@ -218,7 +230,7 @@ namespace TelegramBot
                                         switch (callBackQuery.Data)
                                         {
                                             case Constants.NavigationConstants.MainMenuActions.SendRequest:
-                                                UserInfo[chatId].LastMessage = await botClient.SendMessage(chatId, "Введите текст заявки. При необходимости, прикрепите к сообщению фото, видео или документ", replyMarkup: GetBackToMenuMarkup());
+                                                UserInfo[chatId].LastMessage = await botClient.SendMessage(chatId, "Введите текст заявки", replyMarkup: GetBackToMenuMarkup());
                                                 UserInfo[chatId].State = State.EnteringRequestText;
                                                 break;
                                             case Constants.NavigationConstants.MainMenuActions.FindDocument:
@@ -250,6 +262,13 @@ namespace TelegramBot
                                             UserInfo[chatId].State = State.ChoosingDocument;
                                             UserInfo[chatId].Page = 0;
                                         }
+                                        break;
+
+                                    case State.PuttingDocuments:
+                                        if (callBackQuery.Data == Constants.NavigationConstants.Requests.SendRequest)
+                                            CreateRequest(update);
+                                        else if (callBackQuery.Data == Constants.NavigationConstants.MainMenu)
+                                            ShowMainMenu(update, false);
                                         break;
                                 }
                             }

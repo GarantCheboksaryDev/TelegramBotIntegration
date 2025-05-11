@@ -18,7 +18,7 @@ namespace TelegramBot
         /// Получить Id чата с текущим пользователем в telegram.
         /// </summary>
         /// <param name="update">Обновление.</param>
-        /// <returns>Id чата с текущим пользователем.</returns>
+        /// <returns>Id чата с текущим пользователем. Возвращает 0, если update равен null или тип обновления не поддерживается.</returns>
         public static long GetChatId(Update update)
         {
             if (update != null)
@@ -43,38 +43,104 @@ namespace TelegramBot
         /// Получить логин текущего пользователя в telegram.
         /// </summary>
         /// <param name="update">Обновление.</param>
-        /// <returns>Логин текущего пользователя в telegram.</returns>
+        /// <returns>Логин текущего пользователя в telegram. Возвращает пустую строку, если update равен null или тип обновления не поддерживается.</returns>
         public static string GetUserName(Update update)
         {
-            switch (update.Type)
+            if (update != null)
             {
-                case UpdateType.Message: return update.Message.From.Username;
-                case UpdateType.CallbackQuery: return update.CallbackQuery.From.Username;
-                case UpdateType.InlineQuery: return update.InlineQuery.From.Username;
-                case UpdateType.EditedMessage: return update.EditedMessage.From.Username;
-                case UpdateType.PollAnswer: return update.PollAnswer.User.Username;
-                case UpdateType.ChosenInlineResult: return update.ChosenInlineResult.From.Username;
-                case UpdateType.ChatMember: return update.ChatMember.NewChatMember.User.Username;
-                case UpdateType.Unknown: return update.MyChatMember.Chat.Username;
-                default: return string.Empty;
+
+                switch (update.Type)
+                {
+                    case UpdateType.Message: return update.Message.From.Username;
+                    case UpdateType.CallbackQuery: return update.CallbackQuery.From.Username;
+                    case UpdateType.InlineQuery: return update.InlineQuery.From.Username;
+                    case UpdateType.EditedMessage: return update.EditedMessage.From.Username;
+                    case UpdateType.PollAnswer: return update.PollAnswer.User.Username;
+                    case UpdateType.ChosenInlineResult: return update.ChosenInlineResult.From.Username;
+                    case UpdateType.ChatMember: return update.ChatMember.NewChatMember.User.Username;
+                    case UpdateType.Unknown: return update.MyChatMember.Chat.Username;
+                    default: return string.Empty;
+                }
             }
+            return string.Empty;
         }
 
+        /// <summary>
+        /// Получить идентификатор и наименование вложения из сообщения.
+        /// </summary>
+        /// <param name="message">Сообщение.</param>
+        /// <returns>Структура с информацией о вложении.</returns>
+        public static AttachmentInfo GetAttachmentInfoFromMessage(Message message)
+        {
+            var attachmentInfo = new AttachmentInfo();
+            if (message.Document != null)
+            {
+                attachmentInfo.Id = message.Document.FileId;
+                attachmentInfo.Name = message.Document.FileName;
+            }
+            if (message.Video != null)
+            {
+                attachmentInfo.Id = message.Video.FileId;
+                attachmentInfo.Name = message.Video.FileName;
+            }
+            if (message.Audio != null)
+            {
+                attachmentInfo.Id = message.Audio.FileId;
+                attachmentInfo.Name = message.Audio.FileName;
+            }
+            if (message.Photo != null)
+                attachmentInfo.Id = message.Photo.LastOrDefault()?.FileId;
+            if (message.VideoNote != null)
+                attachmentInfo.Id = message.VideoNote.FileId;
+            if (message.Voice != null)
+                attachmentInfo.Id = message.Voice.FileId;
 
+            return attachmentInfo;
+        }
 
         /// <summary>
-        /// Скрыть конпки в клавиатуре.
+        /// Получает информацию о файлах в формате JSON, скачивая их из Telegram.
+        /// </summary>
+        /// <param name="attachmentInfos">Список информации о вложениях (ID и имя файла).</param>
+        /// <returns>JSON-строка с массивом объектов FileInfo (содержит base64-данные и имя файла).</returns>
+        /// <remarks>
+        /// Для файлов без имени используется имя из filePath.
+        /// </remarks>
+        /// <example>
+        /// Возвращает строку вида: [{"Data":"base64string","Name":"filename"}]
+        /// </example>
+        public static async Task<string> GetFilesInfo(List<AttachmentInfo> attachmentInfos)
+        {
+            var fileInfos = new List<TelegramBotService.FileInfo>();
+            foreach (var attachmentInfo in attachmentInfos)
+            {
+                if (attachmentInfo.Id != null)
+                {
+                    using (var stream = new MemoryStream())
+                    {
+                        var file = await BotWrapper.Telegram.GetInfoAndDownloadFile(attachmentInfo.Id, stream);
+                        if (attachmentInfo.Name == null)
+                            attachmentInfo.Name = file.FilePath?.Split('/')?.LastOrDefault()?.Split('.')?.FirstOrDefault();
+                        fileInfos.Add(new TelegramBotService.FileInfo(Convert.ToBase64String(stream.ToArray()), attachmentInfo.Name));
+                    }
+                }
+            }
+            return Newtonsoft.Json.JsonConvert.SerializeObject(fileInfos);
+        }
+
+        /// <summary>
+        /// Скрыть конпки в клавиатуре. Функция тправляет и сразу же удаляет служебное сообщение в чат.
         /// </summary>
         /// <param name="update">Обновление.</param>
         public static async Task RemoveKeyboard(Update update)
         {
             var chatId = GetChatId(update);
-            var message = await BotProgram.Telegram.SendMessage(chatId: chatId, text: "ㅤ", replyMarkup: new ReplyKeyboardRemove(), disableNotification: true);
-            await BotProgram.Telegram.DeleteMessage(chatId, message.MessageId);
+            var message = await BotWrapper.Telegram.SendMessage(chatId: chatId, text: "ㅤ", replyMarkup: new ReplyKeyboardRemove(), disableNotification: true);
+            await BotWrapper.Telegram.DeleteMessage(chatId, message.MessageId);
         }
 
         /// <summary>
-        /// Скрыть кнопки в чате.
+        /// Скрыть кнопки в чате. Метод редактирует последнее отправленное сообщение от бота, если в нем были кнопки клавиатуры.
         /// </summary>
         /// <param name="update">Обновление.</param>
         public static async Task RemoveInline(Update update)
@@ -82,11 +148,11 @@ namespace TelegramBot
             try
             {
                 var chatId = GetChatId(update);
-                if (BotProgram.UserInfo.ContainsKey(chatId) && BotProgram.UserInfo[chatId].LastMessage != null && BotProgram.UserInfo[chatId].LastMessage.ReplyMarkup != null)
-                    BotProgram.UserInfo[chatId].LastMessage = await BotProgram.Telegram.EditMessageReplyMarkup(chatId, BotProgram.UserInfo[chatId].LastMessage.MessageId);
+                if (BotWrapper.UserInfo.ContainsKey(chatId) && BotWrapper.UserInfo[chatId].LastMessage != null && BotWrapper.UserInfo[chatId].LastMessage.ReplyMarkup != null)
+                    BotWrapper.UserInfo[chatId].LastMessage = await BotWrapper.Telegram.EditMessageReplyMarkup(chatId, BotWrapper.UserInfo[chatId].LastMessage.MessageId);
             }
             catch
-            {  }
+            { }
         }
 
         /// <summary>
@@ -94,7 +160,7 @@ namespace TelegramBot
         /// </summary>
         /// <param name="text">Строка (object, т.к. проверяются строки, полученные через odata).</param>
         /// <returns>Если строка не null и не пустая, то возвращается true. Иначе - false.</returns>
-        public static bool CheckString(object text) => text != null && !string.IsNullOrEmpty(text.ToString()) ? true : false;
+        public static bool CheckString(object text) => !string.IsNullOrEmpty(text?.ToString());
 
         /// <summary>
         /// Получить кнопки клавиатуры для вывода списка сущностей.
@@ -105,23 +171,23 @@ namespace TelegramBot
         {
             List<KeyboardButton[]> buttons = new List<KeyboardButton[]>();
             var backOrForward = new KeyboardButton[] { };
-            if (BotProgram.UserInfo.ContainsKey(chatId))
+            if (BotWrapper.UserInfo.ContainsKey(chatId))
             {
-                var entities = BotProgram.UserInfo[chatId].Entities;
+                var entities = BotWrapper.UserInfo[chatId].Entities;
                 var allbuttons = GetButtonsFromEntitesList(entities);
 
-                buttons = allbuttons.Skip(BotProgram.UserInfo[chatId].Page * Constants.NavigationConstants.EntitiesOnPage)
-                    .Take(Constants.NavigationConstants.EntitiesOnPage).ToList();
+                buttons = allbuttons.Skip(BotWrapper.UserInfo[chatId].Page * BotWrapper.EntitiesOnPage)
+                    .Take(BotWrapper.EntitiesOnPage).ToList();
 
-                if (allbuttons.Count > Constants.NavigationConstants.EntitiesOnPage)
+                if (allbuttons.Count > BotWrapper.EntitiesOnPage)
                 {
-                    if (BotProgram.UserInfo[chatId].Page == 0)
+                    if (BotWrapper.UserInfo[chatId].Page == 0)
                     {
                         backOrForward = new KeyboardButton[] { Constants.NavigationConstants.Next };
                     }
                     else
                     {
-                        if ((BotProgram.UserInfo[chatId].Page + 1) * Constants.NavigationConstants.EntitiesOnPage >= allbuttons.Count)
+                        if ((BotWrapper.UserInfo[chatId].Page + 1) * BotWrapper.EntitiesOnPage >= allbuttons.Count)
                             backOrForward = new KeyboardButton[] { Constants.NavigationConstants.Previous };
                         else
                             backOrForward = new KeyboardButton[] { Constants.NavigationConstants.Previous, Constants.NavigationConstants.Next };
@@ -166,19 +232,19 @@ namespace TelegramBot
         }
 
         /// <summary>
-        /// Получить список массивов кнопок клавиатуры из списка сущностей.
+        /// Получить список массивов кнопок клавиатуры из списка сущностей. Метод разбивает кнопки по длине текста, содержащегося в кнопках.
         /// </summary>
         /// <param name="entities">Список сущностей.</param>
         /// <returns>Список массивов кнопок клавиатуры.</returns>
         static List<KeyboardButton[]> GetButtonsFromEntitesList(List<EntityInfo> entities)
         {
-            var buttons = new List<KeyboardButton []>();
+            var buttons = new List<KeyboardButton[]>();
             var row = new List<KeyboardButton>();
             int currentLength = 0;
 
             foreach (var entity in entities)
             {
-                if (currentLength + entity.Name.Length > Constants.NavigationConstants.MaxTotalLengthInMarkup && row.Any())
+                if (currentLength + entity.Name.Length > BotWrapper.MaxTotalLengthInMarkup && row.Any())
                 {
                     buttons.Add(row.ToArray());
                     row = new List<KeyboardButton>();
@@ -189,7 +255,7 @@ namespace TelegramBot
                 currentLength += entity.Name.Length;
             }
 
-            if (row.Count > 0)
+            if (row.Any())
                 buttons.Add(row.ToArray());
 
             return buttons;

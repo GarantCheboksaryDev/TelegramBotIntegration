@@ -1,23 +1,17 @@
-using NLog.Extensions.Logging;
-using System.Runtime.InteropServices;
+using Sungero.Logging;
 
-var builder = Host.CreateDefaultBuilder(args)
-    .ConfigureServices((context, services) =>
+class Program
+{
+    static void Main(string[] args)
     {
-        services.AddHostedService<BotService>();
-    })
-    .ConfigureLogging(logging =>
-    {
-        logging.ClearProviders();
-        logging.SetMinimumLevel(LogLevel.Trace);
-        logging.AddNLog();
-    });
+        Logs.Ñonfiguration.Configure();
+        CreateHostBuilder(args).Build().Run();
+    }
 
-
-if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-    builder.UseWindowsService();
-else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-    builder.UseSystemd();
-
-var host = builder.Build();
-host.Run();
+    public static IHostBuilder CreateHostBuilder(string[] args) =>
+    Host.CreateDefaultBuilder(args)
+        .ConfigureServices((hostContext, services) =>
+        {
+            services.AddHostedService<BotService>();
+        });
+}

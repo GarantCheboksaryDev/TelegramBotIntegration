@@ -6,10 +6,7 @@
         /// Сообщение для запуска чат-бота.
         /// </summary>
         public const string StartMessage = "/start";
-        /// <summary>
-        /// Период проверки авторизации пользователя в Directum RX в секундах.
-        /// </summary>
-        public const int CheckingPeriod = 60;
+
         /// <summary>
         /// Наименования атрибутов справочника "Пользователи чат-бота".
         /// </summary>
@@ -84,14 +81,7 @@
             /// Текст кнопки для повтора поиска записей.
             /// </summary>
             public const string SearchAgain = "Повторить поиск";
-            /// <summary>
-            /// Количество сущностей, одновременно отображаемых при выводе большого списка сущностей.
-            /// </summary>
-            public const int EntitiesOnPage = 4;
-            /// <summary>
-            /// Максимальная суммарная длина строк для вывода в один ряд в кнопках клавиатуры.
-            /// </summary>
-            public const int MaxTotalLengthInMarkup = 50;
+
             /// <summary>
             /// Действия главного меню.
             /// </summary>
@@ -125,6 +115,17 @@
                 /// </summary>
                 public const string SendNewCode = "Отправить новый код";
             }
+
+            /// <summary>
+            /// Действия при отправке заявок.
+            /// </summary>
+            public class Requests
+            {
+                /// <summary>
+                /// Текст кнопки для отправки заявки в работу.
+                /// </summary>
+                public const string SendRequest = "Отправить";
+            }
         }
 
         /// <summary>
@@ -145,12 +146,17 @@
                 /// <summary>
                 /// Наименование функции для создания и отправки в работу заявки.
                 /// </summary>
-                public const string CreateRequest = "CreateRequest";
+                public const string CreateRequestFromBot = "CreateRequestFromBot";
 
                 /// <summary>
                 /// Наименование функции для создания записи справочника "Пользователи чат-бота".
                 /// </summary>
                 public const string CreateBotUser = "CreateBotUser";
+
+                /// <summary>
+                /// Наименование функции для привязки ИД пользователя телеграм и логина в телеграм к карточке пользователя чат-бота по регистрационному токену.
+                /// </summary>
+                public const string RegisterUserByToken = "RegisterUserByToken";
 
                 /// <summary>
                 /// Наименование функции для записи ИД чата бота с пользователем в справочнике "Пользователи чат-бота".

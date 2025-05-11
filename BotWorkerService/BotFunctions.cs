@@ -9,47 +9,36 @@ using BotWorkerService;
 using System.IO;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
+using CustomJobHandler;
 
 namespace TelegramBot
 {
-    partial class BotProgram
+    partial class BotWrapper
     {
         /// <summary>
-        /// Идентифицировать пользователя в RX
+        /// Идентифицировать пользователя в RX.
         /// </summary>
-        /// <param name="Telegram"></param>
-        /// <param name="update"></param>
-        /// <param name="odataClient"></param>
-        /// <param name="UserInfo"></param>
-        /// <returns>признак того, найден ли пользователь в системе</returns>
+        /// <param name="update">Обновление.</param>
+        /// <returns>Признак того, найден ли пользователь в системе.</returns>
         public static async Task<bool> IdentificateUser(Update update)
         {
             var chatId = CommonFunctions.GetChatId(update);
             string userName = CommonFunctions.GetUserName(update);
-            var prefix = $"IdentificateUser. Логин: {userName}. ";
+            var prefix = $"IdentificateUser. Логин: {userName}. ИД: {chatId}. ";
 
             try
             {
                 // Проверка наличия пользователя в системе
-                Logger.LogInformation($"{prefix}Старт идентификации пользователя в Directum RX.");
+                Logger.Info($"{prefix}Старт идентификации пользователя в Directum RX.");
 
-                if (userName == null)
-                {
-                    if (!UserInfo.ContainsKey(chatId))
-                        UserInfo[chatId] = new UserInfo();
-                    UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId, "Не задано имя пользователя. Пожалуйста, задайте имя пользователя в настройках Telegram и попробуйте зарегистрироваться заново, отправив команду /start.");
-                    UserInfo[chatId].State = State.Start;
-                    Logger.LogInformation($"{prefix}Не указан логин в telegram.");
-                    return false;
-                }
-                var botUser = await IntegrationDirectumRX.GetTelegramUser(userName);
+                var botUser = await IntegrationDirectumRX.GetTelegramUser(chatId);
                 if (botUser == null)
                 {
                     if (!UserInfo.ContainsKey(chatId))
                         UserInfo[chatId] = new UserInfo();
-                    UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId, "Вы еще не зарегистрированы в чат-боте. Для регистрации введите корпоративную почту, на нее будет выслан код подтверждения.");
+                    UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId, "Вы еще не зарегистрированы в чат-боте. Для регистрации введите регистрационный токен, полученный от администратора, или корпоративную почту.");
                     UserInfo[chatId].State = State.Registration;
-                    Logger.LogInformation($"{prefix}Пользователь не зарегистрирован в чат-боте.");
+                    Logger.Info($"{prefix}Пользователь не зарегистрирован в чат-боте.");
                     return false;
                 }
                 else if (botUser[Constants.BotUserProperties.Status] == Constants.StatusItems.Closed
@@ -60,7 +49,7 @@ namespace TelegramBot
                         UserInfo[chatId] = new UserInfo();
                     UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId, "Ваша учетная запись заблокирована", replyMarkup: new ReplyKeyboardRemove());
                     UserInfo[chatId].State = State.Start;
-                    Logger.LogInformation($"{prefix}Карточка сотрудника, учетной записи или пользователя чат-бота закрыты в Directum RX.");
+                    Logger.Info($"{prefix}Карточка сотрудника, учетной записи или пользователя чат-бота закрыты в Directum RX.");
                     return false;
                 }
                 else
@@ -71,7 +60,7 @@ namespace TelegramBot
                         IntegrationDirectumRX.SetChatId(update);
                     }
                     UserInfo[chatId].LastUserCheck = DateTime.Now;
-                    Logger.LogInformation($"{prefix}Пользователь идентифицирован.");
+                    Logger.Info($"{prefix}Пользователь идентифицирован.");
                     return true;
                 }
             }
@@ -96,39 +85,59 @@ namespace TelegramBot
             {
                 if (UserInfo.ContainsKey(chatId))
                 {
-                    UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId, "Проверяю электронную почту");
-                    string email = string.Empty;
+                    string emailOrToken = string.Empty;
                     if (update.Message != null)
-                        email = update?.Message?.Text?.Trim();
-                    else if (ConfirmationInfo.ContainsKey(chatId))
-                        email = ConfirmationInfo[chatId].Mail;
+                        emailOrToken = update?.Message?.Text?.Trim();
 
-                    prefix += $"Электронная почта: {email}. ";
-
-                    Logger.LogInformation($"{prefix}Поиск сотрудника по электронной почте в Directum RX.");
-
-                    var employee = await IntegrationDirectumRX.GetEmployeeByMail(email);
-                    if (employee == null)
+                    if (System.Guid.TryParse(emailOrToken, out _))
                     {
-                        Logger.LogInformation($"{prefix}Пользователь с данной электронной почтой не найден в Directum RX.");
-
-                        UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId: chatId, text: $"Пользователь с данной электронной почтой не найден в Directum RX");
-                        UserInfo[chatId].State = State.Registration;
-                        return;
+                        var result = await IntegrationDirectumRX.RegisterUserByToken(emailOrToken, chatId, CommonFunctions.GetUserName(update), CommonFunctions.GetChatId(update));
+                        if (result == null)
+                        {
+                            UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId: chatId, text: "Вы успешно зарегистрировались в чат-боте!");
+                            UserInfo[chatId].State = State.MainMenu;
+                            ShowMainMenu(update, false);
+                        }
+                        else
+                        {
+                            UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId: chatId, text: $"Произошла ошибка при регистрации в чат-боте: \"{result}\". Обратитесь к Администратору.");
+                            UserInfo[chatId].State = State.Registration;
+                        }
                     }
-
-                    Random rand = new Random();
-                    int confirmationCode = rand.Next(100000, 999999);
-                    if (ConfirmationInfo.ContainsKey(chatId) && ConfirmationInfo[chatId].Mail == email)
-                        ConfirmationInfo[chatId].Code.Add(confirmationCode);
                     else
-                        ConfirmationInfo[chatId] = new ConfirmationCode(email, confirmationCode);
-                    UserInfo[chatId].State = State.ConfirmationCode;
-                    await SendConfirmationCodeAsync(update, email, confirmationCode);
+                    {
+                        UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId, "Проверяю электронную почту");
 
-                    Logger.LogInformation($"{prefix}Код подтверждения отправлен на почту сотрудника.");
+                        if (update.Message == null && ConfirmationInfo.ContainsKey(chatId))
+                            emailOrToken = ConfirmationInfo[chatId].Mail;
 
-                    await Telegram.SendMessage(chatId, "На указанную почту отправлен код подтверждения. Напишите его в чат.");
+                        prefix += $"Электронная почта: {emailOrToken}. ";
+
+                        Logger.Info($"{prefix}Поиск сотрудника по электронной почте в Directum RX.");
+
+                        var employee = await IntegrationDirectumRX.GetEmployeeByMail(emailOrToken);
+                        if (employee == null)
+                        {
+                            Logger.Info($"{prefix}Пользователь с данной электронной почтой не найден в Directum RX.");
+
+                            UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId: chatId, text: $"Пользователь с данной электронной почтой не найден в Directum RX");
+                            UserInfo[chatId].State = State.Registration;
+                            return;
+                        }
+
+                        Random rand = new Random();
+                        int confirmationCode = rand.Next(100000, 999999);
+                        if (ConfirmationInfo.ContainsKey(chatId) && ConfirmationInfo[chatId].Mail == emailOrToken)
+                            ConfirmationInfo[chatId].Code.Add(confirmationCode);
+                        else
+                            ConfirmationInfo[chatId] = new ConfirmationCode(emailOrToken, confirmationCode);
+                        UserInfo[chatId].State = State.ConfirmationCode;
+                        await SendConfirmationCodeAsync(update, emailOrToken, confirmationCode);
+
+                        Logger.Info($"{prefix}Код подтверждения отправлен на почту сотрудника.");
+
+                        await Telegram.SendMessage(chatId, "На указанную почту отправлен код подтверждения. Напишите его в чат.");
+                    }
                 }
             }
             catch (Exception ex)
@@ -148,7 +157,7 @@ namespace TelegramBot
         {
             var emailMessage = new MimeMessage();
 
-            emailMessage.From.Add(new MailboxAddress("Чат бот телеграм", MailAddress));
+            emailMessage.From.Add(new MailboxAddress("Чат бот телеграм", ServiceSettings.Instance.SmtpAddress));
             emailMessage.To.Add(new MailboxAddress("", email));
             emailMessage.Subject = "Регистрация в чат-боте";
             var text = $"<p>Код для регистрации в чат-боте: {code}</p>";
@@ -159,9 +168,9 @@ namespace TelegramBot
 
             using (var client = new SmtpClient())
             {
-                await client.ConnectAsync(SmtpHost, SmtpPort, Enum.Parse<MailKit.Security.SecureSocketOptions>(SmtpSecure));
-                if (!string.IsNullOrEmpty(SmtpLogin))
-                    await client.AuthenticateAsync(SmtpLogin, SmtpPassword);
+                await client.ConnectAsync(ServiceSettings.Instance.SmtpHost, ServiceSettings.Instance.SmtpPort, Enum.Parse<MailKit.Security.SecureSocketOptions>(ServiceSettings.Instance.SmtpSecure));
+                if (!string.IsNullOrEmpty(ServiceSettings.Instance.SmtpLogin))
+                    await client.AuthenticateAsync(ServiceSettings.Instance.SmtpLogin, ServiceSettings.Instance.SmtpPassword);
                 await client.SendAsync(emailMessage);
                 await client.DisconnectAsync(true);
             }
@@ -224,7 +233,7 @@ namespace TelegramBot
                 int.TryParse(codeText, out int code);
                 if (code == 0 || !ConfirmationInfo[chatId].Code.Contains(code))
                 {
-                    Logger.LogWarning($"{prefix}Введен неверный код.");
+                    Logger.Warn($"{prefix}Введен неверный код.");
 
                     InlineKeyboardMarkup replyMarkup = new InlineKeyboardMarkup(new[]
                     {
@@ -238,18 +247,18 @@ namespace TelegramBot
                 }
                 else if (ConfirmationInfo[chatId].Code.Contains(code))
                 {
-                    Logger.LogWarning($"{prefix}Введен верный код подтверждения.");
+                    Logger.Warn($"{prefix}Введен верный код подтверждения.");
 
                     var employee = await IntegrationDirectumRX.GetEmployeeByMail(email);
                     if (employee != null)
                     {
-                        var success = await IntegrationDirectumRX.CreateBotUser(email, chatId, CommonFunctions.GetUserName(update));
+                        var success = await IntegrationDirectumRX.CreateBotUser(email, chatId, CommonFunctions.GetUserName(update), CommonFunctions.GetChatId(update));
                         if (success)
                         {
                             if (!UserInfo.ContainsKey(chatId))
                                 UserInfo[chatId] = new UserInfo();
 
-                            Logger.LogInformation($"{prefix}Пользователь успешно зарегистрирован в чат-боте.");
+                            Logger.Info($"{prefix}Пользователь успешно зарегистрирован в чат-боте.");
 
                             UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId: chatId, text: $"{employee[Constants.EntityProperties.Name]}, Вы успешно зарегистрировались в чат-боте!");
                             ConfirmationInfo.Remove(chatId);
@@ -261,7 +270,7 @@ namespace TelegramBot
                         if (!UserInfo.ContainsKey(chatId))
                             UserInfo[chatId] = new UserInfo();
 
-                        Logger.LogInformation($"{prefix}Пользователь с данной почтой не найден в Directum RX.");
+                        Logger.Info($"{prefix}Пользователь с данной почтой не найден в Directum RX.");
 
                         UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId: chatId, text: $"Пользователь с данной почтой не найден в Directum RX");
                         UserInfo[chatId].State = State.Start;
@@ -404,42 +413,11 @@ namespace TelegramBot
                 var message = update.Message;
                 var chatId = CommonFunctions.GetChatId(update);
 
-                string? fileId = null;
-                string filename = null;
-                if (message.Document != null)
-                {
-                    fileId = message.Document.FileId;
-                    filename = message.Document.FileName;
-                }
-                if (message.Video != null)
-                {
-                    fileId = message.Video.FileId;
-                    filename = message.Video.FileName;
-                }
-                if (message.Audio != null)
-                {
-                    fileId = message.Audio.FileId;
-                    filename = message.Audio.FileName;
-                }
-                if (message.Photo != null)
-                    fileId = message.Photo.LastOrDefault()?.FileId;
-                if (message.VideoNote != null)
-                    fileId = message.VideoNote.FileId;
-                if (message.Voice != null)
-                    fileId = message.Voice.FileId;
-
-                if (fileId != null)
-                {
-                    using (var stream = new MemoryStream())
-                    {
-                        var file = await Telegram.GetInfoAndDownloadFile(fileId, stream);
-                        if (filename == null)
-                            filename = file.FilePath.Split('/').LastOrDefault();
-                        await IntegrationDirectumRX.SendRequest(update, message.Caption, stream.ToArray(), filename);
-                    }
-                }
-                else
-                    await IntegrationDirectumRX.SendRequest(update, message.Text, new byte[0], null);
+                var filesJson = await CommonFunctions.GetFilesInfo(UserInfo[chatId].Attachments);
+                var requestText = UserInfo[chatId].RequestText;
+                await IntegrationDirectumRX.SendRequest(update, requestText, filesJson);
+                UserInfo[chatId].Attachments = new List<AttachmentInfo>();
+                UserInfo[chatId].RequestText = null;
 
                 UserInfo[chatId].LastMessage = await Telegram.SendMessage(chatId, "Заявка успешно отправлена в работу ответственному за заявки");
                 ShowMainMenu(update, false);

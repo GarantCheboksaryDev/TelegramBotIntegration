@@ -8,15 +8,33 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="LogSettings.config" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="LogSettings.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ConfigSettings" Version="1.0.15" />
     <PackageReference Include="MailKit" Version="3.6.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.3" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NLog" Version="5.4.0" />
     <PackageReference Include="NLog.Extensions.Logging" Version="5.4.0" />
     <PackageReference Include="Simple.OData.Client" Version="6.0.0" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="7.0.0" />
     <PackageReference Include="System.Text.Json" Version="9.0.3" />
     <PackageReference Include="Telegram.Bot" Version="22.4.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Sungero.Logging">
+      <HintPath>..\..\rx-template-microservice-main\lib\Sungero.Logging.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>

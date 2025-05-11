@@ -7,13 +7,14 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
+using CustomJobHandler;
 
 namespace TelegramBot
 {
     /// <summary>
     /// Служебные функции для работы сервиса.
     /// </summary>
-    partial class BotProgram
+    partial class BotWrapper
     {
         /// <summary>
         /// Метод, вызываемый при возникновении исключения.
@@ -24,7 +25,7 @@ namespace TelegramBot
         /// <returns></returns>
         public static Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
         {
-            Logger.LogError(exception.ToString());
+            Logger.Error(exception.ToString());
             return Task.CompletedTask;
         }
 
@@ -32,7 +33,7 @@ namespace TelegramBot
         /// Точка входа в обработчик чат-бота.
         /// </summary>
         /// <param name="logger">Экземпляр логгера.</param>
-        public static void Start(ILogger<BotService> logger)
+        public static void Start(Sungero.Logging.ILog logger)
         {
             Logger = logger;
 
@@ -41,7 +42,7 @@ namespace TelegramBot
 
             Telegram = new TelegramBotClient(Token);
             OdataClient = IntegrationDirectumRX.AuthenticationOdataCLient(IntegrationServiceUrl, Login, Password);
-            logger.LogInformation(Telegram.GetMe().Result.FirstName + Environment.NewLine);
+            logger.Info(Telegram.GetMe().Result.FirstName + Environment.NewLine);
             var cts = new CancellationTokenSource();
             var cancellationToken = cts.Token;
             var receiverOptions = new ReceiverOptions
@@ -59,7 +60,7 @@ namespace TelegramBot
         /// <param name="text">Текст для пользователя.</param>
         public static async void HandleError(Update update, Exception ex, string text)
         {
-            Logger.LogError(ex.ToString());
+            Logger.Error(ex.ToString());
             var chatId = CommonFunctions.GetChatId(update);
             if (string.IsNullOrEmpty(text)) 
                 text = "Произошла ошибка, повторите попытку позже";
