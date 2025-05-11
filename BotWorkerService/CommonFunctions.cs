@@ -222,8 +222,9 @@ namespace TelegramBot
                     if (info[Constants.EntityProperties.Name] == null)
                         continue;
                     entity.Name = info[Constants.EntityProperties.Name].Trim();
-                    if (entity.Name.Length > 127)
-                        entity.Name = entity.Name.Substring(0, 127);
+                    //Имя сущности обрезается до 127 символов, т.к. если не обрезать явно, то telegram автоматически это делает, и добавляет в конце строки символ '…', из-за чего могут впоследствии возникать проблемы при сопоставлении наименований.
+                    if (entity.Name.Length > Constants.NavigationConstants.MaxNameLengthInButton)
+                        entity.Name = entity.Name.Substring(0, Constants.NavigationConstants.MaxNameLengthInButton);
                     entity.Id = info[Constants.EntityProperties.Id];
                     entities.Add(entity);
                 }

@@ -81,6 +81,10 @@
             /// Текст кнопки для повтора поиска записей.
             /// </summary>
             public const string SearchAgain = "Повторить поиск";
+            /// <summary>
+            /// Максимальное количество символов, помещающиеся в кноку клавиатуры.
+            /// </summary>
+            public const int MaxNameLengthInButton = 127;
 
             /// <summary>
             /// Действия главного меню.
