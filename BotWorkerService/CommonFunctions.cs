@@ -120,7 +120,7 @@ namespace TelegramBot
                     {
                         var file = await BotWrapper.Telegram.GetInfoAndDownloadFile(attachmentInfo.Id, stream);
                         if (attachmentInfo.Name == null)
-                            attachmentInfo.Name = file.FilePath?.Split('/')?.LastOrDefault()?.Split('.')?.FirstOrDefault();
+                            attachmentInfo.Name = file.FilePath?.Split('/')?.LastOrDefault();
                         fileInfos.Add(new TelegramBotService.FileInfo(Convert.ToBase64String(stream.ToArray()), attachmentInfo.Name));
                     }
                 }
